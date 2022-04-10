@@ -39,21 +39,21 @@ generate_logo() { #display colorized Pi-Apps logo in terminal
   
   #use simpler logo if OS is Buster or lower - to fix issue https://github.com/Botspot/pi-apps/issues/1441
   local version_id="$(grep 'VERSION_ID=' /etc/os-release | tr -cd '0123456789')"
-  if [ -z "$version_id" ] || [ "$version_id" -lt 11 ];then
-    echo -e "\e[40m\e[97m    ${green}▅${darkgreen}▅▅▅▅${green}▅\e[40m\e[97m
- ${blue}▂▂▂${green}█${blue}▂▂▂▂${green}█${blue}▂▂▂\e[40m\e[97m
- \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █▀▀▆ ▄
- \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █▄▄\e[7m▂\e[27m ▄ ${blue}▄▄\e[97m ▆▀▀█ █▀▀▆ █▀▀▆ ▆\e[7m━━━\e[27m
- \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █    █    \e[7m▂\e[27m▄▄█ █▄▄\e[7m▂\e[27m █▄▄\e[7m▂\e[27m ▄▄▄\e[7m▂\e[27m
- ${blue}\e[7m▂\e[27m\e[107m▃▃▃▃▃▃▃▃▃▃\e[40m\e[7m▂\e[27m\e[40m\e[40m\e[97m                  █    █
-\e[0m\e[0m"
-  else
+  if [[ "$version_id" != *\.* ]] && [ "$version_id" -ge 11 ];then
     echo -e "\e[40m\e[97m    ${green}🭊${darkgreen}▅▅▅▅${green}🬿\e[40m\e[97m
  ${blue}🭈▂▂${green}█${blue}▂▂▂▂${green}█${blue}▂▂🬽\e[40m\e[97m
  \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █▀▀🭍 ▄
  \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █▄▄🭞 ▄ ${blue}▄▄\e[97m 🭂▀▀█ █▀▀🭍 █▀▀🭍 🭂🬰🬰🬰
  \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █    █    🭓▄▄█ █▄▄🭞 █▄▄🭞 ▄▄▄🭞
  ${blue}🭓\e[107m🬭🬭🬰🬰🬰🬰🬰🬰🬭🬭\e[40m🭞\e[40m\e[97m                  █    █
+\e[0m\e[0m"
+  else
+    echo -e "\e[40m\e[97m    ${green}▅${darkgreen}▅▅▅▅${green}▅\e[40m\e[97m
+ ${blue}▂▂▂${green}█${blue}▂▂▂▂${green}█${blue}▂▂▂\e[40m\e[97m
+ \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █▀▀▆ ▄
+ \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █▄▄\e[7m▂\e[27m ▄ ${blue}▄▄\e[97m ▆▀▀█ █▀▀▆ █▀▀▆ ▆\e[7m━━━\e[27m
+ \e[107m${blue}▌  ${red}\e[40m▗▖▗▖▗▖\e[107m${blue}  ▐\e[40m\e[97m   █    █    \e[7m▂\e[27m▄▄█ █▄▄\e[7m▂\e[27m █▄▄\e[7m▂\e[27m ▄▄▄\e[7m▂\e[27m
+ ${blue}\e[7m▂\e[27m\e[107m▃▃▃▃▃▃▃▃▃▃\e[40m\e[7m▂\e[27m\e[40m\e[40m\e[97m                  █    █
 \e[0m\e[0m"
   fi
 }
@@ -143,7 +143,7 @@ package_dependencies() { #outputs the list of dependencies for the $1 package
   package_info "$package" | grep '^Depends: ' | sed 's/^Depends: //g'
 }
 
-package_latest_version() { #returns the latest availabl versions of the specified package-name. Doesn't matter if it's installed or not.
+package_latest_version() { #returns the latest available versions of the specified package-name. Doesn't matter if it's installed or not.
   local package="$1"
   [ -z "$package" ] && error "package_version(): no package specified!"
   
@@ -1243,8 +1243,15 @@ sudo mkdir -p /var/lib/dpkg/updates")
   if grep -q "E: Repository .* changed its 'Suite' value" <<<"$errors" ;then
     error_caption+=("One or more APT repositories on your system have changed Suite values. Usually this occurs when a new version of Debian is released every two years.
 
-Pi-Apps ought to work around this error, but somehow it did not.
+Pi-Apps should work around this error, but somehow it did not.
 Please run this command in a terminal: sudo apt update --allow-releaseinfo-change")
+    error_type="system"
+  fi
+  
+  if grep -q "E: Failed to fetch .* File has unexpected size .* Mirror sync in progress?" ;then
+    error_caption+=("APT encountered a repository with a file that is of incorrect size. This can be caused by a periodic mirror sync, or maybe the repository is faulty.
+
+In any case, Pi-Apps cannot work until you solve this issue. Try disabling any 3rd-party APT repos first, and if that doesn't work then ask for help.")
     error_type="system"
   fi
   
@@ -1455,7 +1462,7 @@ If this keeps happening, see: https://stackoverflow.com/questions/66366582")
     error_type="internet"
   fi
   
-  if grep -q "errorCode=1 SSL/TLS handshake failure\|errorCode=1 total length mismatch.\|errorCode=1 Failed to establish connection, cause: Connection refused\|errorCode=22 The response status is not successful\|errorCode=24 Authorization failed\.\|errorCode=2 Timeout\.\|abort: Connection reset by peer\|errorCode=19.*Name resolution for.*failed\|failed: Temporary failure in name resolution.\|Unable to establish SSL connection.\|Connection closed at byte \|Read error at byte \|failed: No route to host\." <<<"$errors" ;then
+  if grep -q "errorCode=1 SSL/TLS handshake failure\|errorCode=1 total length mismatch.\|errorCode=1 Failed to establish connection, cause: Connection refused\|errorCode=22 The response status is not successful\|errorCode=24 Authorization failed\.\|errorCode=2 Timeout\.\|abort: Connection reset by peer\|errorCode=19.*Name resolution for.*failed\|failed: Temporary failure in name resolution.\|Unable to establish SSL connection.\|Connection closed at byte \|Read error at byte \|failed: No route to host\.\|errorCode=8 Invalid range header\." <<<"$errors" ;then
     error_caption+=("Download failed. Check your internet connection and firewall, then try again.")
     error_type="internet"
   fi
@@ -1615,6 +1622,15 @@ See: https://raspberrypi.stackexchange.com/a/8423/107602")
     error_type="system"
   fi
   
+  if grep -q "Error: Failed to read commit .* No such metadata object\|error: Failed to install org.freedesktop.Platform: Failed to read commit .* No such metadata object\|Error: Error deploying: .* No such metadata object" <<<"$errors" ;then
+    error_caption+=("Flatpak failed to install something due to a past incompleted download.
+
+To repair it, please run this command in a terminal: flatpak repair --user
+
+If this issue keeps happening, see: https://github.com/flatpak/flatpak/issues/3479")
+    error_type="system"
+  fi
+  
   #Individual scripts can self-diagnose by outputting "User error: ", followed by the diagnosis.
   if grep -q "^User error: " <<<"$errors" ;then
     error_caption+=("$(grep "^User error: " <<<"$errors" | sed 's/^User error: //g')")
@@ -1656,27 +1672,6 @@ send_error_report() { #non-interactively send a Pi-Apps error log file to the Bo
   
   local errors="$(bash <(base64 -d <<<"aWYgZ3JlcCAnXlBpLUFwcHMgbG9jYWwgY29tbWl0IElEOicg$(base64 <<<"$1")IDt0aGVuIGN1cmwgLUYgImZpbGU9QFwi$(base64 <<<"$1")XCI7ZmlsZW5hbWU9XCIkKGJhc2VuYW1lICI=$(base64 <<<"$1")IiB8IHNlZCAncy9cLi4qLy50eHQvZycpXCIiICIkKHdnZXQgLXFPLSAiJChiYXNlNjQgLWQgPDw8ImFIUjBjSE02THk5eVlYY3VaMmwwYUhWaWRYTmxjbU52Ym5SbGJuUXVZMjl0TDBKdmRITndiM1F2Y0drdFlYQndjeTFoYm1Gc2VYUnBZM012YldGcGJpOWxjbkp2Y2kxc2IyY3RkMlZpYUc5dmF3bz0iKSIgfCAkKGJhc2U2NCAtZCA8PDwiWW1GelpUWTBJQzFrQ2c9PSIpKSIgO2Vsc2Ugc2xlZXAgMC43IDtmaQo=" | tr -d '\n') 2>&1)"
   [ $? != 0 ] && error "curl failed to upload log file!\nErrors:\n$errors"
-  
-}
-
-send_error_report_gui() { #Ask user for permission to send error report
-  [ -z "$1" ] && error "send_error_report_gui(): requires an argument for error report file!"
-  [ ! -f "$1" ] && error "send_error_report_gui(): Given error report file ($1) does not exist!"
-  [ -z "$2" ] && error "send_error_report_gui(): requires an argument for window text!"
-  
-  command -v curl >/dev/null || error "send_error_report_gui(): curl is not installed!"
-  
-  yad "${yadflags[@]}" --title="Send error report?" \
-    --text="$2"$'\n'"Send anonymous error report to Pi-Apps developers?"$'\n'"Support is available on <a href=\"https://discord.gg/RXSTvaUvuu\">Discord</a> and <a href=\"https://github.com/Botspot/pi-apps/issues/new/choose\">Github</a>." --on-top \
-    --button='Send report'!"${DIRECTORY}/icons/upload.png":0 \
-    --button='View report'!"${DIRECTORY}/icons/log-file.png"!"View the log file to be sent.":"bash -c 'view_file "\""$1"\""'" \
-    --button="Don't send"!"${DIRECTORY}/icons/exit.png":1
-  local button=$?
-  #echo "Button: $button"
-  
-  if [ "$button" == 0 ];then
-    send_error_report "$1"
-  fi
   
 }
 #end of logfile functions
@@ -1831,7 +1826,14 @@ get_codename() { #get debian/ubuntu codename
   if ! command -v lsb_release &>/dev/null; then
     apt_update && sudo apt-get install -y lsb-release
   fi
-  lsb_release -sc
+  
+  # check if upstream-release is available
+  if [ -f /etc/upstream-release/lsb-release ]; then
+    # this is a derivative, get the upstream release info
+    lsb_release -suc
+else
+    lsb_release -sc
+  fi
 }
 
 multi_install_gui() { #graphical interface to install multiple apps from a list.
@@ -2119,28 +2121,6 @@ elif [ "$guimode" == xlunch-dark-3d ];then
   export GTK_THEME=Adwaita-dark
 elif [ "$guimode" == xlunch-dark ];then
   export GTK_THEME=Adwaita-dark
-fi
-
-#get color to use for yad text (mini python script inside bash)
-#used for yad version earlier than 0.40.0
-#0400 is the latest version
-yad_version="$(zcat /usr/share/doc/yad/NEWS.gz | head -n 1 | tr -cd '0123456789\n')"
-if [ $yad_version -lt 0400 ]; then
-text_color=$(echo "import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
-from gi.repository import Gdk
-win = Gtk.Window()
-vb = Gtk.VBox()
-tv = Gtk.TextView()
-vb.add(tv)
-win.show_all()
-style = tv.get_style_context()
-textcolor = style.get_color(Gtk.StateType.NORMAL) 
-print(Gdk.RGBA.to_string(textcolor))
-" | python -)
-else
-text_color=""
 fi
 
 #this array stores flags that are used in all yad windows - saves on the typing and makes it easy to change an attribute on all dialogs from one place.
